@@ -11,6 +11,7 @@ require "fileutils"
 $LOAD_PATH.unshift File.expand_path("../src", __dir__)
 
 require "api"
+require "app"
 require "config"
 require "db"
 
@@ -368,6 +369,22 @@ assert_eq(s, 200, "read without csrf still works")
 # malformed JSON is rejected before routing
 s, = call("POST", "/api/projects", body: {}, broken: true)
 assert_eq(s, 400, "malformed JSON body returns 400")
+
+# Browser bootstrap must be valid script JSON, with no literal closing script tag.
+["test-marker", "</script><script>alert(1)</script>&"].each do |marker|
+  cfg = CFG.dup
+  cfg.build_marker = marker
+  shell = App.new(cfg).send(:render_shell, cfg, SESSION)
+  raw = shell[/window\.TB_BOOT = (.*);<\/script>/, 1]
+  begin
+    boot = JSON.parse(raw)
+    assert_eq(boot["csrf"], SESSION, "browser bootstrap preserves csrf")
+    assert_eq(boot["release"], marker, "browser bootstrap round-trips release")
+    assert(!raw.include?("<"), "browser bootstrap cannot close script element")
+  rescue JSON::ParserError
+    bad("browser bootstrap is not valid JSON")
+  end
+end
 
 # --- summary ---
 FileUtils.rm_rf(WORK)

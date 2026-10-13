@@ -141,7 +141,7 @@ class App
       "runtime" => "ruby #{RUBY_VERSION} / webrick",
       "base" => cfg.base_path,
     }
-    boot_json = CGI.escapeHTML(JSON.generate(boot))
+    boot_json = JSON.generate(boot).gsub("<", '\u003c')
     title = "Rack Taskboard"
     <<~HTML
       <!DOCTYPE html>
